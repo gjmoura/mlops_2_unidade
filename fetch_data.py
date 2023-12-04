@@ -1,6 +1,7 @@
 import os
 import subprocess
 
+
 # Download datasets
 subprocess.run(['wget', 'https://dsserver-prod-resources-1.s3.amazonaws.com/nlp/train.csv'])
 
@@ -11,7 +12,7 @@ subprocess.run(['wandb', 'login', '--relogin'])
 # Send the raw_data to the wandb and store it as an artifact
 subprocess.run([
     'wandb', 'artifact', 'put',
-    '--name', 'tweet_classifying/train.csv',
+    '--name', 'classifying_tweets/train',
     '--type', 'RawData',
     '--description', 'Real and Fake Disaster-Related Tweets Dataset',
     'train.csv'
