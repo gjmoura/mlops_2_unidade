@@ -109,8 +109,16 @@ df['text_lemmatized'] = df['text_stop'].apply(lemmatization)
 # Joining Tokens into Sentences
 df['final'] = df['text_lemmatized'].str.join(' ')
 
+# Salve o DataFrame como um arquivo CSV
+df.to_csv('cleanData.csv')
 
-
+subprocess.run([
+    'wandb', 'artifact', 'put',
+    '--name', 'classifying_tweets/clean_data',
+    '--type', 'CleanData',
+    '--description', 'Preprocessed data',
+    'clean_data.csv'
+])
 
 
 wandb.finish()
