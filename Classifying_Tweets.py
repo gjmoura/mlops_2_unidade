@@ -34,14 +34,6 @@ subprocess.run([
     'train.csv'
 ])
 
-subprocess.run([
-    'wandb', 'artifact', 'put',
-    '--name', 'classifying_tweets/clean_data',
-    '--type', 'RawData',
-    '--description', 'Preprocessed data',
-    'clean_data.csv'
-])
-
 # Clean up downloaded file (optional)
 os.remove('train.csv')
 
@@ -117,9 +109,11 @@ subprocess.run([
     '--name', 'classifying_tweets/clean_data',
     '--type', 'CleanData',
     '--description', 'Preprocessed data',
-    'clean_data.csv'
+    'cleanData.csv'
 ])
 
+# Clean up downloaded file (optional)
+os.remove('cleanData.csv')
 
 wandb.finish()
 
