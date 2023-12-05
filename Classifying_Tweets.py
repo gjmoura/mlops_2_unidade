@@ -1,53 +1,73 @@
 import os
-import subprocess
-import matplotlib.pyplot as plt
+import re
 import wandb
+import json
+import nltk
+import logging
+import subprocess
 import pandas as pd 
 import seaborn as sns
-import os
 import matplotlib.pyplot as plt
-import wandb
-import re
-import nltk
-nltk.download('punkt')
-from nltk.tokenize import word_tokenize
-nltk.download('stopwords')
-from nltk.corpus import stopwords
-from nltk.stem.wordnet import WordNetLemmatizer
-nltk.download('wordnet')
-nltk.download('omw-1.4')
-from sklearn.model_selection import train_test_split
-import tensorflow as tf
-import tensorflow_datasets as tfds
-from tensorflow.keras.layers import TextVectorization
 import datasets
 import transformers
-import tensorflow_datasets as tfds
+import tensorflow as tf
 from datasets import load_dataset
+from nltk.corpus import stopwords
+import tensorflow_datasets as tfds
+import tensorflow_datasets as tfds
 from transformers import AutoTokenizer
+from nltk.tokenize import word_tokenize
+from nltk.stem.wordnet import WordNetLemmatizer
 from transformers import DataCollatorWithPadding
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.layers import TextVectorization
 from transformers import TFAutoModelForSequenceClassification
+
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('omw-1.4')
+nltk.download('wordnet')
+
+# Configuração inicial do logging
+# Com level logging.INFO, também é englobado o level logging.ERROR
+logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+
+# Lê o conteúdo do arquivo JSON contendo as variáveis de ambiente
+with open('config.json', 'r') as file:
+    config_data = json.load(file)
+
+# Obtém o valor da variável de ambiente
+WANDB_API_KEY = config_data.get('WANDB_API_KEY')
+
+
+# ------ DEF FUNCTIONS --------------------------------------------------------------------------------------
+
+def fetch_data(api_key):
+    # Download dataset
+    logging.info("Dowloading dataset")
+    subprocess.run(['wget', 'https://dsserver-prod-resources-1.s3.amazonaws.com/nlp/train.csv'])
+
+    # Login to Weights & Biases
+    logging.info("Logging in to Weights & Biases")
+    wandb.login(key=api_key)
+
+    # Send the raw_data to the wandb and store it as an artifact
+    logging.info("Send the raw_data to the wandb and store it as an artifact")
+    subprocess.run([
+        'wandb', 'artifact', 'put',
+        '--name', 'tweets_classifying/train',
+        '--type', 'RawData',
+        '--description', 'Real and Fake Disaster-Related Tweets Dataset',
+        'train.csv'
+    ])
+
+    # Clean up downloaded file (optional)
+    os.remove('train.csv')
 
 
 # ------ FETCH DATA --------------------------------------------------------------------------------------
-# Download datasets
-subprocess.run(['wget', 'https://dsserver-prod-resources-1.s3.amazonaws.com/nlp/train.csv'])
+fetch_data(WANDB_API_KEY)
 
-# Login to Weights & Biases
-subprocess.run(['wandb', 'login', '--relogin'])
-
-# Fetch Data
-# Send the raw_data to the wandb and store it as an artifact
-subprocess.run([
-    'wandb', 'artifact', 'put',
-    '--name', 'tweets_classifying/train',
-    '--type', 'RawData',
-    '--description', 'Real and Fake Disaster-Related Tweets Dataset',
-    'train.csv'
-])
-
-# Clean up downloaded file (optional)
-#os.remove('train.csv')
 
 # ------ EDA --------------------------------------------------------------------------------------
 
@@ -130,7 +150,7 @@ subprocess.run([
 # ------ DATA SEGREGATION --------------------------------------------------------------------------------------
 
 # Initialize wandb run
-run = wandb.init(project='tweet_classifying', job_type='data_segregation')
+# run = wandb.init(project='tweet_classifying', job_type='data_segregation')
 
 # Get the clean_data artifact
 artifact = run.use_artifact('clean_data:latest')
@@ -176,11 +196,9 @@ test_artifact.add_file('test_data.csv')
 run.log_artifact(train_artifact)
 run.log_artifact(test_artifact)
 
-#wandb.finish()
-
 # -- Building a Transformer Model ---
 
-run = wandb.init(project='tweet_classifying', job_type='train_model')
+# run = wandb.init(project='tweet_classifying', job_type='train_model')
 
 # Get the train artifact
 train_artifact = run.use_artifact('train_data:latest')
