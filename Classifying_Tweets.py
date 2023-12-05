@@ -68,9 +68,6 @@ def data_exploration():
     # Get the artifact
     artifact = wandb.use_artifact('mlops-ufrn/tweets_classifying/train:v0', type='RawData')
 
-    # Download the content of the artifact to the local directory
-    artifact_dir = artifact.download()
-
     df = pd.read_csv(artifact.file())
 
     target_value_counts = df['target'].value_counts()
@@ -100,9 +97,10 @@ def preprocessing_data():
     # Initialize wandb run
     wandb.init(project='tweets_classifying', save_code=True)
 
-    df = pd.read_csv(artifact.file())
+    # Get the artifact
+    artifact = wandb.use_artifact('mlops-ufrn/tweets_classifying/train:v0', type='RawData')
 
-    df = df.drop(['id','keyword', 'location'], axis=1)
+    df = pd.read_csv(artifact.file(), usecols=['id','keyword', 'location'])
 
     # Lower Character all the Texts
     df['text'] = df['text'].str.lower()
