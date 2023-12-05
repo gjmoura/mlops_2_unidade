@@ -2,7 +2,7 @@ import os
 import subprocess
 import matplotlib.pyplot as plt
 import wandb
-import pandas as pd
+import pandas as pd 
 import seaborn as sns
 import os
 import matplotlib.pyplot as plt
@@ -20,6 +20,14 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow.keras.layers import TextVectorization
+import datasets
+import transformers
+import tensorflow_datasets as tfds
+from datasets import load_dataset
+from transformers import AutoTokenizer
+from transformers import DataCollatorWithPadding
+from transformers import TFAutoModelForSequenceClassification
+
 
 # ------ FETCH DATA --------------------------------------------------------------------------------------
 # Download datasets
@@ -39,7 +47,7 @@ subprocess.run([
 ])
 
 # Clean up downloaded file (optional)
-os.remove('train.csv')
+#os.remove('train.csv')
 
 # ------ EDA --------------------------------------------------------------------------------------
 
@@ -106,18 +114,18 @@ df['text_lemmatized'] = df['text_stop'].apply(lemmatization)
 df['final'] = df['text_lemmatized'].str.join(' ')
 
 # Salve o DataFrame como um arquivo CSV
-df.to_csv('cleanData.csv', index=False)
+df.to_csv('clean_data.csv', index=False)
 
 subprocess.run([
     'wandb', 'artifact', 'put',
     '--name', 'tweets_classifying/clean_data',
-    '--type', 'CleanData',
+    '--type', 'RawData',
     '--description', 'Preprocessed data',
-    'cleanData.csv'
+    'clean_data.csv'
 ])
 
 # Clean up downloaded file (optional)
-os.remove('cleanData.csv')
+#os.remove('clean_data.csv')
 
 # ------ DATA SEGREGATION --------------------------------------------------------------------------------------
 
@@ -125,8 +133,10 @@ os.remove('cleanData.csv')
 run = wandb.init(project='tweet_classifying', job_type='data_segregation')
 
 # Get the clean_data artifact
-artifact = run.use_artifact('cleanData.csv:latest')
-df = pd.read_csv(artifact)
+artifact = run.use_artifact('clean_data:latest')
+path = artifact.get_path('clean_data.csv')
+cleanData = path.download()
+df = pd.read_csv(cleanData)
 
 X = df['final']
 y = df['target']
@@ -135,8 +145,8 @@ y = df['target']
 x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
 
 # Convert split data to DataFrames
-train_data = pd.DataFrame({'text': x_train, 'label': y_train})
-test_data = pd.DataFrame({'text': x_test, 'label': y_test})
+train_data = pd.DataFrame({'final': x_train, 'target': y_train})
+test_data = pd.DataFrame({'final': x_test, 'target': y_test})
 
 # Log the shapes of the training and testing datasets
 wandb.log({'train_data_shape': train_data.shape,
@@ -159,12 +169,68 @@ test_artifact = wandb.Artifact(
 )
 
 # Add CSV files to the artifacts
-train_artifact.add_file('trainData.csv')
-test_artifact.add_file('testData.csv')
+train_artifact.add_file('train_data.csv')
+test_artifact.add_file('test_data.csv')
 
 # Log the new artifacts to wandb
 run.log_artifact(train_artifact)
 run.log_artifact(test_artifact)
 
-wandb.finish()
+#wandb.finish()
 
+# -- Building a Transformer Model ---
+
+run = wandb.init(project='tweet_classifying', job_type='train_model')
+
+# Get the train artifact
+train_artifact = run.use_artifact('train_data:latest')
+train_path = train_artifact.get_path('train_data.csv')
+train_data = train_path.download()
+train_df = pd.read_csv(train_data)
+
+# Get the test artifact
+test_artifact = run.use_artifact('test_data:latest')
+test_path = test_artifact.get_path('test_data.csv')
+test_data = test_path.download()
+test_df = pd.read_csv(test_data)
+
+X_train = train_df['final']
+y_train = train_df['target']
+
+X_test = test_df['final']
+y_test = test_df['target']
+
+# Load the tokenizer and model
+tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+model = TFAutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased")
+
+# Tokenize the text data
+train_encodings = tokenizer(list(X_train), truncation=True, padding=True)
+test_encodings = tokenizer(list(X_test), truncation=True, padding=True)
+
+# Create TensorFlow datasets
+train_dataset = tf.data.Dataset.from_tensor_slices((
+    dict(train_encodings),
+    tf.constant(y_train.values, dtype=tf.int32)
+))
+
+test_dataset = tf.data.Dataset.from_tensor_slices((
+    dict(test_encodings),
+    tf.constant(y_test.values, dtype=tf.int32)
+))
+
+train_dataset = train_dataset.batch(16)
+test_dataset = test_dataset.batch(16)
+
+#-- 
+model = TFAutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=2)
+
+optimizer=tf.keras.optimizers.Adam(learning_rate=3e-5)
+
+loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+metrics=[tf.keras.metrics.SparseCategoricalAccuracy('accuracy')]
+
+model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
+model.fit(train_dataset, epochs=10, validation_data=train_dataset)
+
+wandb.finish()
