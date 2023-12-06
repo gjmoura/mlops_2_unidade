@@ -5,17 +5,14 @@ import pandas as pd
 import os
 
 # This is global so all tests are collected under the same run
-run = wandb.init(project="tweet_classifying", job_type="data_checks")
+run = wandb.init(project='tweets_classifying', save_code=True)
 
-local_path = run.use_artifact("cleanData.csv:latest").file()
-df = pd.read_csv(local_path)
+# Get the clean_data artifact
+artifact = run.use_artifact('clean_data:latest')
+path = artifact.get_path('clean_data.csv')
+data = path.download()
+df = pd.read_csv(data)
 
-
-def test_file_for_training_existence():
-    """
-    Test that the train file exists
-    """
-    assert os.path.exists(df)
 
 def test_dataset_size():
     # Ensure that the dataset has at least 7000 rows

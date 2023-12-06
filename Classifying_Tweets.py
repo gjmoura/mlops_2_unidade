@@ -14,7 +14,6 @@ import tensorflow as tf
 from datasets import load_dataset
 from nltk.corpus import stopwords
 import tensorflow_datasets as tfds
-import tensorflow_datasets as tfds
 from transformers import AutoTokenizer
 from nltk.tokenize import word_tokenize
 from nltk.stem.wordnet import WordNetLemmatizer
@@ -62,9 +61,6 @@ def fetch_data(api_key):
     ])
 
 def data_exploration():
-    # Initialize wandb run
-    wandb.init(project='tweets_classifying', save_code=True)
-
     # Get the artifact
     artifact = wandb.use_artifact('mlops-ufrn/tweets_classifying/train:v0', type='RawData')
 
@@ -85,8 +81,7 @@ def data_exploration():
     # Log the table image to wandb
     wandb.log({"File Category Tweet": wandb.Image('file_category_tweet.png')})
 
-    # Finish the wandb run
-    wandb.finish()
+
 
 def preprocessing_data():
     nltk.download('punkt')
@@ -94,13 +89,13 @@ def preprocessing_data():
     nltk.download('omw-1.4')
     nltk.download('wordnet')
 
-    # Initialize wandb run
-    wandb.init(project='tweets_classifying', save_code=True)
 
     # Get the artifact
     artifact = wandb.use_artifact('mlops-ufrn/tweets_classifying/train:v0', type='RawData')
 
-    df = pd.read_csv(artifact.file(), usecols=['id','keyword', 'location'])
+    df = pd.read_csv(artifact.file())
+    
+    df = df.drop(['id','keyword', 'location'], axis=1)
 
     # Lower Character all the Texts
     df['text'] = df['text'].str.lower()
@@ -140,17 +135,13 @@ def preprocessing_data():
     subprocess.run([
         'wandb', 'artifact', 'put',
         '--name', 'tweets_classifying/clean_data',
-        '--type', 'CleanData',
+        '--type', 'RawData',
         '--description', 'Preprocessed data',
         'clean_data.csv'
     ])
 
-    # Finish the wandb run
-    wandb.finish()
 
 def data_segregation():
-    # Initialize wandb run
-    run = wandb.init(project='tweet_classifying', job_type='data_segregation')
 
     # Get the clean_data artifact
     artifact = run.use_artifact('clean_data:latest')
@@ -196,12 +187,9 @@ def data_segregation():
     run.log_artifact(train_artifact)
     run.log_artifact(test_artifact)
 
-    # Finish the wandb run
-    wandb.finish()
+  
 
 def data_train():
-    # Initialize wandb run
-    run = wandb.init(project='tweet_classifying', job_type='train_model')
 
     # Get the train artifact
     train_artifact = run.use_artifact('train_data:latest')
@@ -254,14 +242,15 @@ def data_train():
     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
     model.fit(train_dataset, epochs=10, validation_data=train_dataset)
 
-    wandb.finish()
 
 
 # ------ FETCH DATA --------------------------------------------------------------------------------------
+# Initialize wandb run
+run = wandb.init(project='tweets_classifying', save_code=True)
 fetch_data(WANDB_API_KEY)
 
 # Clean up downloaded file (optional)
-delete_data('train.csv')
+# delete_data('train.csv')
     
 
 # ------ EDA --------------------------------------------------------------------------------------
@@ -272,27 +261,28 @@ data_exploration()
 preprocessing_data()
 
 # Clean up downloaded file (optional)
-delete_data('clean_data.csv')
+# delete_data('clean_data.csv')
 
 
 # ------ DATA SEGREGATION --------------------------------------------------------------------------------------
 data_segregation()
 
 # Clean up downloaded file (optional)
-delete_data('clean_data.csv')
+# delete_data('clean_data.csv')
 
 # Clean up downloaded file (optional)
-delete_data('train_data.csv')
+# delete_data('train_data.csv')
 
 # Clean up downloaded file (optional)
-delete_data('test_data.csv')
+# delete_data('test_data.csv')
 
 
 # ------ TRAIN DATA --------------------------------------------------------------------------------------
 data_train()
 
 # Clean up downloaded file (optional)
-delete_data('train_data.csv')
+# delete_data('train_data.csv')
 
 # Clean up downloaded file (optional)
-delete_data('test_data.csv')
+# delete_data('test_data.csv')
+wandb.finish()
