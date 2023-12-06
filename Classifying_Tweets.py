@@ -3,6 +3,7 @@ import re
 import wandb
 import json
 import nltk
+import pytest
 import logging
 import subprocess
 import pandas as pd 
@@ -11,6 +12,11 @@ import matplotlib.pyplot as plt
 import datasets
 import transformers
 import tensorflow as tf
+
+from airflow import DAG
+from airflow.utils.task_group import TaskGroup
+from airflow.operators.python_operator import PythonOperator
+
 from datasets import load_dataset
 from nltk.corpus import stopwords
 import tensorflow_datasets as tfds
@@ -30,8 +36,7 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
 with open('config.json', 'r') as file:
     config_data = json.load(file)
 
-# Obtém o valor da variável de ambiente
-WANDB_API_KEY = config_data.get('WANDB_API_KEY')
+
 
 
 # ------ DEFINE FUNCTIONS --------------------------------------------------------------------------------------
@@ -141,7 +146,14 @@ def preprocessing_data():
     ])
 
 
-def data_segregation():
+def data_check():
+    result = pytest.main(["-vv", "."])
+
+    if result != 0:
+        raise ValueError("Data checks failed")
+
+
+def data_segregation(run):
 
     # Get the clean_data artifact
     artifact = run.use_artifact('clean_data:latest')
@@ -188,8 +200,7 @@ def data_segregation():
     run.log_artifact(test_artifact)
 
   
-
-def data_train():
+def data_train(run):
 
     # Get the train artifact
     train_artifact = run.use_artifact('train_data:latest')
@@ -243,46 +254,115 @@ def data_train():
     model.fit(train_dataset, epochs=10, validation_data=train_dataset)
 
 
+def wandb_finish(run) {
+    run.finish()
+}
 
-# ------ FETCH DATA --------------------------------------------------------------------------------------
-# Initialize wandb run
+
+
+
 run = wandb.init(project='tweets_classifying', save_code=True)
-fetch_data(WANDB_API_KEY)
 
-# Clean up downloaded file (optional)
-# delete_data('train.csv')
-    
+WANDB_API_KEY = config_data.get('WANDB_API_KEY')
+
+DEFAULT_ARGS = {
+    "owner": "airflow",
+    "start_date": datetime(2023, 11, 30),
+    "catchup": False,
+}
+
+with DAG("tweets_classifying", default_args=DEFAULT_ARGS, schedule_interval="@daily") as dag:
+# ------ FETCH DATA --------------------------------------------------------------------------------------
+    fetch_data = PythonOperator(
+        task_id="fetch_data",
+        python_callable=fetch_data,
+        op_kwargs={
+            "api_key": WANDB_API_KEY
+        }
+    )
 
 # ------ EDA --------------------------------------------------------------------------------------
-data_exploration()
-
+    data_exploration = PythonOperator(
+        task_id="data_exploration",
+        python_callable=data_exploration
+    )
 
 # ------ PREPROCESSING --------------------------------------------------------------------------------------
-preprocessing_data()
+    preprocessing_data = PythonOperator(
+        task_id="preprocessing_data",
+        python_callable=preprocessing_data
+    )
 
-# Clean up downloaded file (optional)
-# delete_data('clean_data.csv')
+    delete_preprocessing_data = PythonOperator(
+        task_id="delete_data_preprocessing",
+        python_callable=delete_data_preprocessing,
+        op_kwargs={
+            "file_name": 'clean_data.csv'
+        }
+    )
 
+# ------ DATA CHECK --------------------------------------------------------------------------------------
+    data_check = PythonOperator(
+        task_id="data_check",
+        python_callable=data_check
+    )
 
 # ------ DATA SEGREGATION --------------------------------------------------------------------------------------
-data_segregation()
+    data_segregation = PythonOperator(
+        task_id="data_segregation",
+        python_callable=data_segregation,
+        op_kwargs={
+            "run": run
+        }
+    )
 
-# Clean up downloaded file (optional)
-# delete_data('clean_data.csv')
+    delete_clean_data = PythonOperator(
+        task_id="delete_data",
+        python_callable=delete_data,
+        op_kwargs={
+            "file_name": 'clean_data.csv'
+        }
+    )
 
-# Clean up downloaded file (optional)
-# delete_data('train_data.csv')
+    delete_train_data = PythonOperator(
+        task_id="delete_data",
+        python_callable=delete_data,
+        op_kwargs={
+            "file_name": 'train_data.csv'
+        }
+    )
 
-# Clean up downloaded file (optional)
-# delete_data('test_data.csv')
+    delete_test_data = PythonOperator(
+        task_id="delete_data",
+        python_callable=delete_data,
+        op_kwargs={
+            "file_name": 'test_data.csv'
+        }
+    )
 
+# ------ DATA TRAIN --------------------------------------------------------------------------------------
+    data_train = PythonOperator(
+        task_id="data_train",
+        python_callable=data_train,
+        op_kwargs={
+            "run": run
+        }
+    )
 
-# ------ TRAIN DATA --------------------------------------------------------------------------------------
-data_train()
+    wandb_finish = PythonOperator(
+        task_id="wandb_finish",
+        python_callable=wandb_finish,
+        op_kwargs={
+            "run": run
+        }
+    )
 
-# Clean up downloaded file (optional)
-# delete_data('train_data.csv')
+    
 
-# Clean up downloaded file (optional)
-# delete_data('test_data.csv')
-wandb.finish()
+fetch_data.set_downstream(data_exploration)
+data_exploration.set_downstream(preprocessing_data)
+
+preprocessing_data.set_downstream([data_check, delete_preprocessing_data, data_segregation])
+
+data_segregation.set_downstream([delete_clean_data, delete_train_data, delete_test_data, data_train])
+data_train.set_downstream(wandb_finish)
