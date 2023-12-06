@@ -41,10 +41,9 @@ with open('config.json', 'r') as file:
 
 # ------ DEFINE FUNCTIONS --------------------------------------------------------------------------------------
 
-def delete_data(file_name):
-    logging.info(f"Deleting {file_name}")
-
-    os.remove(file_name)
+# def delete_data(file_name):
+#     logging.info(f"Deleting {file_name}")
+#     os.remove(file_name)
 
 def fetch_data(api_key):
     # Download dataset
@@ -242,21 +241,41 @@ def data_train(run):
     train_dataset = train_dataset.batch(16)
     test_dataset = test_dataset.batch(16)
 
-    #-- 
+    # Define model, optimizer, loss function and metrics
     model = TFAutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=2)
-
     optimizer=tf.keras.optimizers.Adam(learning_rate=3e-5)
-
     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
     metrics=[tf.keras.metrics.SparseCategoricalAccuracy('accuracy')]
 
     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
-    model.fit(train_dataset, epochs=10, validation_data=train_dataset)
+    history = model.fit(train_dataset, epochs=10, validation_data=train_dataset)
+
+    # ------ NOVO ------
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    ax.plot(np.arange(0, 1), history.history["loss"], label="train_loss",linestyle='--')
+    ax.plot(np.arange(0, 1), history.history["val_loss"], label="val_loss",linestyle='--')
+    ax.plot(np.arange(0, 1), history.history["accuracy"], label="train_acc")
+    ax.plot(np.arange(0, 1), history.history["val_accuracy"], label="val_acc")
+
+    ax.set_title("Training Loss and Accuracy")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss/Accuracy")
+
+    ax.legend()
+    plt.tight_layout()
+
+    plt.savefig(f"training_loss_acc.png")
+
+    wandb.log({f"training_loss_acc": wandb.Image(f"training_loss_acc.png")})
 
 
-def wandb_finish(run) {
+def wandb_finish(run):
     run.finish()
-}
+
 
 
 
@@ -281,11 +300,27 @@ with DAG("tweets_classifying", default_args=DEFAULT_ARGS, schedule_interval="@da
         }
     )
 
+    # delete_raw_data = PythonOperator(
+    #     task_id="delete_raw_data",
+    #     python_callable=delete_data,
+    #     op_kwargs={
+    #         "file_name": 'train.csv'
+    #     }
+    # )
+
 # ------ EDA --------------------------------------------------------------------------------------
     data_exploration = PythonOperator(
         task_id="data_exploration",
         python_callable=data_exploration
     )
+
+    # delete_raw_data_eda = PythonOperator(
+    #     task_id="delete_raw_data_eda",
+    #     python_callable=delete_data,
+    #     op_kwargs={
+    #         "file_name": 'train.csv'
+    #     }
+    # )
 
 # ------ PREPROCESSING --------------------------------------------------------------------------------------
     preprocessing_data = PythonOperator(
@@ -293,13 +328,13 @@ with DAG("tweets_classifying", default_args=DEFAULT_ARGS, schedule_interval="@da
         python_callable=preprocessing_data
     )
 
-    delete_preprocessing_data = PythonOperator(
-        task_id="delete_data_preprocessing",
-        python_callable=delete_data_preprocessing,
-        op_kwargs={
-            "file_name": 'clean_data.csv'
-        }
-    )
+    # delete_preprocessing_data = PythonOperator(
+    #     task_id="delete_preprocessing_data",
+    #     python_callable=delete_data,
+    #     op_kwargs={
+    #         "file_name": 'clean_data.csv'
+    #     }
+    # )
 
 # ------ DATA CHECK --------------------------------------------------------------------------------------
     data_check = PythonOperator(
@@ -316,29 +351,29 @@ with DAG("tweets_classifying", default_args=DEFAULT_ARGS, schedule_interval="@da
         }
     )
 
-    delete_clean_data = PythonOperator(
-        task_id="delete_data",
-        python_callable=delete_data,
-        op_kwargs={
-            "file_name": 'clean_data.csv'
-        }
-    )
+    # delete_clean_data = PythonOperator(
+    #     task_id="delete_clean_data",
+    #     python_callable=delete_data,
+    #     op_kwargs={
+    #         "file_name": 'clean_data.csv'
+    #     }
+    # )
 
-    delete_train_data = PythonOperator(
-        task_id="delete_data",
-        python_callable=delete_data,
-        op_kwargs={
-            "file_name": 'train_data.csv'
-        }
-    )
+    # delete_train_data = PythonOperator(
+    #     task_id="delete_train_data",
+    #     python_callable=delete_data,
+    #     op_kwargs={
+    #         "file_name": 'train_data.csv'
+    #     }
+    # )
 
-    delete_test_data = PythonOperator(
-        task_id="delete_data",
-        python_callable=delete_data,
-        op_kwargs={
-            "file_name": 'test_data.csv'
-        }
-    )
+    # delete_test_data = PythonOperator(
+    #     task_id="delete_test_data",
+    #     python_callable=delete_data,
+    #     op_kwargs={
+    #         "file_name": 'test_data.csv'
+    #     }
+    # )
 
 # ------ DATA TRAIN --------------------------------------------------------------------------------------
     data_train = PythonOperator(
@@ -358,11 +393,19 @@ with DAG("tweets_classifying", default_args=DEFAULT_ARGS, schedule_interval="@da
     )
 
     
-
+#--------------- SEM DELETE_DATA() --------------------------------------------------
 fetch_data.set_downstream(data_exploration)
 data_exploration.set_downstream(preprocessing_data)
-
-preprocessing_data.set_downstream([data_check, delete_preprocessing_data, data_segregation])
-
-data_segregation.set_downstream([delete_clean_data, delete_train_data, delete_test_data, data_train])
+preprocessing_data.set_downstream(data_check)
+data_check.set_downstream(data_segregation)
+data_segregation.set_downstream(data_train)
 data_train.set_downstream(wandb_finish)
+
+
+#--------------- COM DELETE_DATA() --------------------------------------------------
+# fetch_data.set_downstream([data_exploration, delete_raw_data])
+# data_exploration.set_downstream([preprocessing_data, delete_raw_data_eda])
+# preprocessing_data.set_downstream([data_check, delete_preprocessing_data])
+# data_check.set_downstream(data_segregation)
+# data_segregation.set_downstream([delete_clean_data, delete_train_data, delete_test_data, data_train])
+# data_train.set_downstream(wandb_finish)
