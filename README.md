@@ -89,7 +89,7 @@ airflow standalone
 Na página inicial, em que há uma lista com as DAGs, procure pela opção "tweets_classifying" e despause essa DAG clicando no toggle ao lado de seu título. Em seguida, clique no título e você obterá mais informações sobre ela, como grafos e logs sobre cada task da pipeline. Para executar a pipeline, basta clicar no ícone de "play" na parte superior direita.
 
 
-##Resultados
+## Resultados
 
 A partir da execução do código foi possível obter dentro do Weights & Biases os histogramas e gráficos que foram passados a partir do Logging. As imagens a seguir mostram, repectivamente, os valores para a quantidade de tweets que estão relacionados a tweets não reais e reais.
 
