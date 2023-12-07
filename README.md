@@ -3,7 +3,7 @@ Projeto da disciplina Projeto de Sistemas Baseados em Aprendizado de Máquina da
 
 ## 📒 Projeto
 # Airflow Data Pipeline to Download Podcasts
-Esse é projeto se chama <i>Classifying Disaster-Related Tweets as Real or Fake</i> e constrói um modelo de classificação de texto de aprendizagem profunda para prever se tweets estão relacionados a desastres reais. Utilizando como base o rpojeto de protifólio disponível na plataforma [Dataquest](https://app.dataquest.io/) e um conjunto de dados obtido do Kaggle,o algoritmo passa por etapas que incluem a exploração e visualização dos dados, o pré-processamento textual, a segregação dos dados em conjuntos de treino e teste, o treinamento do modelo com TensorFlow e Hugging Face Transformers. Além disso, foi feita uma integração com o Weights and Biases para monitoramento e registro de experimentos. 
+Esse é projeto se chama <i>Classifying Disaster-Related Tweets as Real or Fake</i> e constrói um modelo de classificação de texto de aprendizagem profunda para prever se tweets estão relacionados a desastres reais. Utilizando como base o projeto de protifólio disponível na plataforma [Dataquest](https://app.dataquest.io/) e um conjunto de dados obtido do Kaggle,o algoritmo passa por etapas que incluem a exploração e visualização dos dados, o pré-processamento textual, a segregação dos dados em conjuntos de treino e teste, o treinamento do modelo com TensorFlow e Hugging Face Transformers. Além disso, foi feita uma integração com o Weights and Biases para monitoramento e registro de experimentos. 
 
 ## Dependências
 - wandb
@@ -37,7 +37,9 @@ Esse é projeto se chama <i>Classifying Disaster-Related Tweets as Real or Fake<
     python3 Classifying_Tweets.py
     ```
 
-## weights and biases
+## Weights and Biases
+
+### 1. Fetch Data
 
 
 
