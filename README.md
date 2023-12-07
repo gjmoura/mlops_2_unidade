@@ -1,5 +1,5 @@
 # 🤖 Machine Learning Operations
-Projeto da disciplina Projeto de Sistemas Baseados em Aprendizado de Máquina da UFRN, que consiste em desenvolver o projeto guiado da plataforma do Dataquest, Classifying Disaster-Related Tweets as Real or Fake, aplicando conhecimentos de de boas práticas de programaçãoe em projetos de aprendizado de máquina, como debug, testes, logg, clean code, formatação de código e desenvolver uma pipeline para execução do projeto utilizando Airflow.
+Projeto da disciplina Projeto de Sistemas Baseados em Aprendizado de Máquina da UFRN, que consiste em desenvolver o projeto guiado da plataforma do Dataquest, Classifying Disaster-Related Tweets as Real or Fake, aplicando conhecimentos de boas práticas de programaçãoe em projetos de aprendizado de máquina, como debug, testes, logg, clean code, formatação de código e desenvolver uma pipeline para execução do projeto utilizando Airflow.
 
 ## 📒 Projeto
 # Airflow Data Pipeline to Download Podcasts
