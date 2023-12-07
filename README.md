@@ -39,9 +39,6 @@ Esse é projeto se chama <i>Classifying Disaster-Related Tweets as Real or Fake<
 
 ## Weights and Biases
 
-### 1. Fetch Data
-
-
 
 ## ℹ Mais informações
 Alunos 
